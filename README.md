@@ -12,23 +12,24 @@ Designed for **learning, experimentation, and DevOps/IaC practice**.
 
 ## Project Structure
 
+```text
 DEB-APACHE-GUACAMOLE-COMPOSE/
 │
 ├─ guacamole-tomcat/
-│ ├─ Dockerfile
-│ └─ docker-entrypoint.sh
+│  ├─ Dockerfile
+│  └─ docker-entrypoint.sh
 │
 ├─ guacd/
-│ ├─ Dockerfile
-│ └─ docker-entrypoint.sh
+│  ├─ Dockerfile
+│  └─ docker-entrypoint.sh
 │
 ├─ mariadb-guacamole/
-│ ├─ Dockerfile
-│ ├─ docker-entrypoint.sh
-│ └─ init/
-│   ├─ 000-create-table.sql
-│   ├─ 001-create-schema.sql
-│   └─ 002-create-admin-user.sql
+│  ├─ Dockerfile
+│  ├─ docker-entrypoint.sh
+│  └─ init/
+│     ├─ 000-create-table.sql
+│     ├─ 001-create-schema.sql
+│     └─ 002-create-admin-user.sql
 │
 ├─ docker-compose.yml
 └─ instruction.txt
@@ -93,7 +94,7 @@ docker-compose up -d --build
 
 3. Access Guacamole at: http://<your-ip>:8080/guacamole
 
-# Prerequisites
+## Prerequisites
  
 - Docker >= 24.0
 - Docker Compose >= 2.x
