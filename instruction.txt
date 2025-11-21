@@ -133,6 +133,8 @@ systemctl restart guacd
 # Vérification des logs 
 tail -n 50 /opt/tomcat9/logs/catalina.out
 
+Test CI
+
 
 
 
