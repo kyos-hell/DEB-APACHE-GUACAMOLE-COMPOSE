@@ -32,7 +32,7 @@ jobs:
       
       # Show result
       - name: Show result
-        run: echo "Changes detected: ${{ steps.changes.outputs['changes'] }}"
+        run: echo "Changes detected: ${{ steps.changes.outputs.changes }}"
       
       # Skip job if no changes detected
       - name: Skip job
