@@ -29,7 +29,8 @@ jobs:
           fi
 
       - name: Show result
-        run: echo "Changes detected: ${{ steps.changes.outputs.changes }}"
+        run: |
+          echo "Changes detected: ${{ steps.changes.outputs.changes }}"
 
       - name: Setup Docker Buildx
         if: ${{ steps.changes.outputs.changes == 'true' }}
