@@ -1,0 +1,119 @@
+name: Build Guacamole Stack images
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  ###########################################
+  # JOB 1 — Build MariaDB image
+  ###########################################
+  build-mariadb:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Activate Docker Buildx
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to GHCR
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build and push MariaDB image
+      - name: Build and push mariadb image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./mariadb-guacamole
+          file: ./mariadb-guacamole/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.actor }}/mariadb-guacamole:latest
+
+      - run: docker images
+
+    ###########################################
+    # JOB 2 — Build GUACD image
+    ###########################################
+  build-guacd:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Activate Docker Buildx
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to GHCR
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build and push GUACD image
+      - name: Build and push guacd image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./guacd
+          file: ./guacd/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.actor }}/guacd:latest
+
+      - run: docker images
+
+      ###########################################
+      # JOB 3 — Build Guacamole Web (Tomcat)
+      ###########################################
+  build-guacamole:
+    runs-on: ubuntu-latest
+    needs: build-guacd
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      # Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Activate Docker Buildx
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to GHCR
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build and push Guacamole Web (Tomcat) image
+      - name: Build and push guacamole image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./guacamole-tomcat
+          file: ./guacamole-tomcat/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.actor }}/guacamole:latest
+
+      - run: docker images
