@@ -10,8 +10,21 @@ jobs:
   ###########################################
   # JOB 1 — Build MariaDB image
   ###########################################
+  lint-mariadb:
+    runs-on: ubuntu-latest
+    name: Lint MariaDB Dockerfile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Lint MariaDB Dockerfile
+        uses: hadolint/hadolint-action@v1
+        with:
+          dockerfile: ./mariadb-guacamole/Dockerfile
+
   build-mariadb:
     runs-on: ubuntu-latest
+    needs: lint-mariadb
     permissions:
       packages: write
       contents: read
