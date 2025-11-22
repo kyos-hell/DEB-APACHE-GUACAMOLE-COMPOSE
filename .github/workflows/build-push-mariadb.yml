@@ -27,7 +27,7 @@ jobs:
 
       # Build mariadb image
       - name: Build mariadb image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./mariadb-guacamole
           file: ./mariadb-guacamole/Dockerfile
