@@ -37,7 +37,7 @@ RUN cp /usr/share/java/mariadb-java-client.jar /etc/guacamole/lib/
 RUN touch /etc/guacamole/guacamole.properties
 
 #copy of scripts entrypoint and set execute permission
-COPY entrypoint.sh /opt/tomcat9/docker-entrypoint.sh
+COPY docker-entrypoint.sh /opt/tomcat9/docker-entrypoint.sh
 RUN chmod +x /opt/tomcat9/docker-entrypoint.sh
 
 #Define permissions
