@@ -68,10 +68,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Detect changes in mariadb-guacamole
+        id: changes
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -q '^guacd/'; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Show result
+        run: |
+          echo "Changes detected: ${{ steps.changes.outputs.changes }}"
+
       - name: Setup Docker Buildx
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -79,6 +94,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push guacd image
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./guacd
@@ -102,10 +118,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Detect changes in mariadb-guacamole
+        id: changes
+        run: |
+          if git diff --name-only HEAD^ HEAD | grep -q '^guacamole-tomcat/'; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Show result
+        run: |
+          echo "Changes detected: ${{ steps.changes.outputs.changes }}"
+
       - name: Setup Docker Buildx
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -113,6 +144,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push guacamole image
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./guacamole-tomcat
