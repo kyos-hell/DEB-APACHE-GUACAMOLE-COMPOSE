@@ -19,9 +19,9 @@ jobs:
       # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       # Detect changes
-      - name:  Detect changes in mariadb-guacamole
+      - name: Detect changes in mariadb-guacamole
         id: changes
         run: |
           if git diff --name-only HEAD^ HEAD | grep -q '^mariadb-guacamole/'; then
@@ -29,16 +29,18 @@ jobs:
           else
             echo "changes=false" >> $GITHUB_OUTPUT
           fi
-      
-      # Show result
+
+      # Show result (safe syntax)
       - name: Show result
-        run: echo "Changes detected: ${{ steps.changes.outputs.changes }}"
-      
+        env:
+          CHANGES: ${{ steps.changes.outputs.changes }}
+        run: echo "Changes detected: $CHANGES"
+
       # Skip job if no changes detected
       - name: Skip job
         if: steps.changes.outputs.changes == 'false'
         run: echo "No changes detected in mariadb-guacamole. Skipping build."
-        
+
       # Activate Docker Buildx if changes detected
       - name: Setup Docker Buildx
         if: steps.changes.outputs.changes == 'true'
@@ -65,9 +67,9 @@ jobs:
 
       - run: docker images
 
-    ###########################################
-    # JOB 2 — Build GUACD image
-    ###########################################
+  ###########################################
+  # JOB 2 — Build GUACD image
+  ###########################################
   build-guacd:
     runs-on: ubuntu-latest
     permissions:
@@ -75,15 +77,12 @@ jobs:
       contents: read
 
     steps:
-      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Activate Docker Buildx
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Login to GHCR
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -91,7 +90,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build and push GUACD image
       - name: Build and push guacd image
         uses: docker/build-push-action@v6
         with:
@@ -102,9 +100,9 @@ jobs:
 
       - run: docker images
 
-      ###########################################
-      # JOB 3 — Build Guacamole Web (Tomcat)
-      ###########################################
+  ###########################################
+  # JOB 3 — Build Guacamole Web (Tomcat)
+  ###########################################
   build-guacamole:
     runs-on: ubuntu-latest
     needs: build-guacd
@@ -113,15 +111,12 @@ jobs:
       contents: read
 
     steps:
-      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Activate Docker Buildx
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Login to GHCR
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -129,7 +124,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build and push Guacamole Web (Tomcat) image
       - name: Build and push guacamole image
         uses: docker/build-push-action@v6
         with:
