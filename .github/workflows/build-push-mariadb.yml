@@ -32,7 +32,7 @@ jobs:
           context: ./mariadb-guacamole
           file: ./mariadb-guacamole/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.actor }}/mariadb-guacamole:latest
+          tags: ghcr.io/kyos-hell/mariadb-guacamole:latest
 
       # Show images built in the runner
       - name: Show built images
