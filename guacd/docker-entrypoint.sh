@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-# --- Récupérer l'adresse de bind depuis l'environnement ou fallback à 0.0.0.0 ---
+# --- Retrieve the bind address from the environment or fall back to 0.0.0.0 --- 
 GUACD_BIND_ADDRESS="${GUACD_BIND_ADDRESS:-0.0.0.0}"
 
-# --- Démarrage final en avant-plan ---
+# --- Final start in foreground --- 
 if [ "$1" = "bash" ]; then
     exec /bin/bash
 else

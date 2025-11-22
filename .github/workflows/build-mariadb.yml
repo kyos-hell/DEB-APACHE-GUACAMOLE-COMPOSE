@@ -1,0 +1,32 @@
+name: Build MariaDB Docker Image
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build-mariadb:
+    runs-on: ubuntu-latest
+
+  steps:
+    # Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Activate Docker Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Build mariadb image
+    - name: Build mariadb image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./mariadb-guacamole
+        file: ./mariadb-guacamole/Dockerfile
+        push: false
+        tags: mariadb-guacamole:latest
+
+    # Show images builded in the runner
+    - name: Show built images
+      run: docker images

@@ -20,7 +20,7 @@ services:
       interval: 5s
       retries: 20
       start_period: 10s
-    # volumes: # tu peux commenter si pas encore de persistant
+    # volumes: 
     #   - mariadb_data:/var/lib/mysql
 
   guacamole:

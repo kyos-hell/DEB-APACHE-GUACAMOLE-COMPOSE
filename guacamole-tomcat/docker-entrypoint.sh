@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Générer guacamole.properties à partir des variables d'environnement
+# Generated guacamole.properties from environment variables 
 cat <<EOF > ${GUACAMOLE_HOME}/guacamole.properties
 guacd-hostname: ${GUACD_HOST:-guacd}
 guacd-port: ${GUACD_PORT:-4822}
@@ -18,7 +18,7 @@ lib-directory: /opt/guacamole/lib
 authentication-provider: net.sourceforge.guacamole.net.auth.mysql.MySQLAuthenticationProvider
 EOF
 
-# Lancer Tomcat or debug on /bin/bash
+# launched tomcat or debug on /bin/bash 
 if [ "$1" = "bash" ]; then
     exec /bin/bash
 else
