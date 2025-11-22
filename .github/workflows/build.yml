@@ -16,11 +16,9 @@ jobs:
       contents: read
 
     steps:
-      # Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Detect changes
       - name: Detect changes in mariadb-guacamole
         id: changes
         run: |
@@ -30,34 +28,29 @@ jobs:
             echo "changes=false" >> $GITHUB_OUTPUT
           fi
 
-      # Show result (safe syntax)
       - name: Show result
         env:
           CHANGES: ${{ steps.changes.outputs.changes }}
         run: echo "Changes detected: $CHANGES"
 
-      # Skip job if no changes detected
       - name: Skip job
-        if: steps.changes.outputs.changes == 'false'
+        if: ${{ steps.changes.outputs.changes == 'false' }}
         run: echo "No changes detected in mariadb-guacamole. Skipping build."
 
-      # Activate Docker Buildx if changes detected
       - name: Setup Docker Buildx
-        if: steps.changes.outputs.changes == 'true'
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/setup-buildx-action@v3
 
-      # Login to GHCR if changes detected
       - name: Login to GHCR
-        if: steps.changes.outputs.changes == 'true'
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build and push MariaDB image if changes detected
       - name: Build and push mariadb image
-        if: steps.changes.outputs.changes == 'true'
+        if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./mariadb-guacamole
