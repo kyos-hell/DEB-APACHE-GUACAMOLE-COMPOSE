@@ -2,8 +2,9 @@ name: Build Guacamole Stack images
 
 on:
   push:
-    branches: ["main"]
+    branches: ["dev", "main"]
   pull_request:
+    branches: ["dev", "main"]
 
 jobs:
   ###########################################
@@ -36,21 +37,21 @@ jobs:
         if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
-        if: ${{ steps.changes.outputs.changes == 'true' }}
+      - name: Login to GHCR (only on main)
+        if: ${{ steps.changes.outputs.changes == 'true' && github.ref == 'refs/heads/main' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push mariadb image
+      - name: Build mariadb image (push only on main)
         if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./mariadb-guacamole
           file: ./mariadb-guacamole/Dockerfile
-          push: true
+          push: ${{ github.ref == 'refs/heads/main' }}
           tags: ghcr.io/${{ github.actor }}/mariadb-guacamole:latest
 
       - run: docker images
@@ -68,7 +69,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Detect changes in mariadb-guacamole
+      - name: Detect changes in guacd
         id: changes
         run: |
           if git diff --name-only HEAD^ HEAD | grep -q '^guacd/'; then
@@ -85,21 +86,21 @@ jobs:
         if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
-        if: ${{ steps.changes.outputs.changes == 'true' }}
+      - name: Login to GHCR (only on main)
+        if: ${{ steps.changes.outputs.changes == 'true' && github.ref == 'refs/heads/main' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push guacd image
+      - name: Build guacd image (push only on main)
         if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./guacd
           file: ./guacd/Dockerfile
-          push: true
+          push: ${{ github.ref == 'refs/heads/main' }}
           tags: ghcr.io/${{ github.actor }}/guacd:latest
 
       - run: docker images
@@ -118,7 +119,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Detect changes in mariadb-guacamole
+      - name: Detect changes in guacamole-tomcat
         id: changes
         run: |
           if git diff --name-only HEAD^ HEAD | grep -q '^guacamole-tomcat/'; then
@@ -135,21 +136,21 @@ jobs:
         if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
-        if: ${{ steps.changes.outputs.changes == 'true' }}
+      - name: Login to GHCR (only on main)
+        if: ${{ steps.changes.outputs.changes == 'true' && github.ref == 'refs/heads/main' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push guacamole image
+      - name: Build guacamole image (push only on main)
         if: ${{ steps.changes.outputs.changes == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: ./guacamole-tomcat
           file: ./guacamole-tomcat/Dockerfile
-          push: true
+          push: ${{ github.ref == 'refs/heads/main' }}
           tags: ghcr.io/${{ github.actor }}/guacamole:latest
 
       - run: docker images
