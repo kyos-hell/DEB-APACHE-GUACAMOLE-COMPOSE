@@ -197,7 +197,7 @@ jobs:
             || (echo "guacd container not running" && docker logs smoke-guacd && exit 1)
       - name: Check port 4822 listening
         run: |
-          docker exec smoke-guacd sh -c "apk add --no-cache net-tools 2>/dev/null || true"
+          docker exec smoke-guacd sh -c "apt-get update && apt-get install -y net-tools 2>/dev/null || true"
           docker exec smoke-guacd sh -c "netstat -lnt | grep -q ':4822' && echo 'Port 4822 listening' || (echo 'Port 4822 not listening'; exit 1)"
           # Alternative externe (sur le host du runner) :
           # docker exec smoke-guacd sh -c "nc -z localhost 4822" ...
