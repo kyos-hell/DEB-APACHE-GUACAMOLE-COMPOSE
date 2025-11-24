@@ -1,0 +1,54 @@
+# Smoke Test MariaDB — rebuilds image locally and checks guacamole_db exists
+on:
+  push:
+    paths:
+      - "mariadb-guacamole/**"
+    branches: ["dev"]
+  pull_request:
+    paths:
+      - "mariadb-guacamole/**"
+    branches: ["dev"]
+  workflow_dispatch: {}
+
+jobs:
+  smoke-mariadb:
+    name: Smoke test mariadb (guacamole_db existence)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build local mariadb image
+        run: docker build -t mariadb-guacamole:ci ./mariadb-guacamole
+
+      - name: Run MariaDB container (MYSQL_DATABASE=guacamole_db)
+        run: |
+          docker run -d --name smoke-mariadb -e MYSQL_ROOT_PASSWORD=rootpassword -e MYSQL_DATABASE=guacamole_db mariadb-guacamole:ci
+
+      - name: Wait for MariaDB readiness
+        run: |
+          for i in $(seq 1 40); do
+            docker exec smoke-mariadb mysqladmin ping -uroot -prootpassword --silent >/dev/null 2>&1 && break || true
+            echo "Waiting for MariaDB... ($i)"
+            sleep 2
+          done
+          docker exec smoke-mariadb mysqladmin ping -uroot -prootpassword --silent >/dev/null 2>&1 || { echo "MariaDB not ready"; docker logs smoke-mariadb; exit 1; }
+
+      - name: Check guacamole_db existence
+        run: |
+          docker exec smoke-mariadb mysql -uroot -prootpassword -e "SHOW DATABASES LIKE 'guacamole_db';" | grep -q guacamole_db \
+            && echo "Database guacamole_db exists" \
+            || (echo "Database guacamole_db NOT found" && docker logs smoke-mariadb && exit 1)
+
+      - name: List databases (debug)
+        if: ${{ success() }}
+        run: docker exec smoke-mariadb mysql -uroot -prootpassword -e "SHOW DATABASES;"
+
+      - name: Dump MariaDB logs (on failure)
+        if: ${{ failure() }}
+        run: docker logs smoke-mariadb || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f smoke-mariadb || true

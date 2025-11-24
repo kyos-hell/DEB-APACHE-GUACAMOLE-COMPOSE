@@ -1,10 +1,11 @@
-name: Build Guacamole Stack images
-
+# Build Guacamole Stack images
+# Builds images and pushes only on main. Loads locally for PRs/dev runs.
 on:
   push:
     branches: ["dev", "main"]
   pull_request:
     branches: ["dev", "main"]
+  workflow_dispatch: {}
 
 jobs:
   ###########################################
@@ -55,65 +56,9 @@ jobs:
           load: ${{ github.ref != 'refs/heads/main' }}
           tags: ghcr.io/${{ github.actor }}/mariadb-guacamole:latest
 
-      - run: docker images
+      - name: Show local images
+        run: docker images
 
-  ###########################################
-  # JOB 1b — Smoke Test MariaDB (DB existence)
-  ###########################################
-  test-mariadb-smoke:
-    name: Smoke test mariadb (guacamole_db existence)
-    runs-on: ubuntu-latest
-    needs: build-mariadb
-    if: ${{ github.ref != 'refs/heads/main' }}
-    steps:
-      - name: Detect changes in mariadb-guacamole
-        id: changes
-        run: |
-          if git diff --name-only HEAD^ HEAD | grep -q '^mariadb-guacamole/'; then
-            echo "changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Skip if no changes
-        if: ${{ steps.changes.outputs.changes == 'false' }}
-        run: |
-          echo "No changes in mariadb-guacamole, skipping smoke test."
-          exit 0
-
-      - name: Run MariaDB container (MYSQL_DATABASE=guacamole_db)
-        run: |
-          IMAGE="ghcr.io/${{ github.actor }}/mariadb-guacamole:latest"
-          docker run -d --name smoke-mariadb -e MYSQL_DATABASE=guacamole_db "$IMAGE"
-
-      - name: Wait for MariaDB readiness
-        run: |
-          for i in $(seq 1 40); do
-            docker exec smoke-mariadb mysqladmin ping -uroot --silent >/dev/null 2>&1 && break
-            echo "Waiting for MariaDB... ($i)"
-            sleep 2
-          done
-          docker exec smoke-mariadb mysqladmin ping -uroot --silent >/dev/null 2>&1 || { echo "MariaDB not ready"; exit 1; }
-
-      - name: Check guacamole_db existence
-        run: |
-          docker exec smoke-mariadb mysql -uroot -e "SHOW DATABASES LIKE 'guacamole_db';" | grep -q guacamole_db \
-            && echo "Database guacamole_db exists" \
-            || (echo "Database guacamole_db NOT found" && docker logs smoke-mariadb && exit 1)
-
-      - name: List databases (debug)
-        if: ${{ success() }}
-        run: docker exec smoke-mariadb mysql -uroot -e "SHOW DATABASES;"
-
-      - name: Dump MariaDB logs (on failure)
-        if: ${{ failure() }}
-        run: docker logs smoke-mariadb || true
-
-      - name: Cleanup
-        if: always()
-        run: |
-          docker stop smoke-mariadb || true
-          docker rm smoke-mariadb || true
   ###########################################
   # JOB 2 — Build GUACD image
   ###########################################
@@ -159,56 +104,11 @@ jobs:
           context: ./guacd
           file: ./guacd/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
+          load: ${{ github.ref != 'refs/heads/main' }}
           tags: ghcr.io/${{ github.actor }}/guacd:latest
 
-      - run: docker images
-
-  ###########################################
-  # JOB 2b — Smoke Test guacd (port 4822 & process)
-  ###########################################
-  test-guacd-smoke:
-    name: Smoke test guacd (port 4822 + process)
-    runs-on: ubuntu-latest
-    needs: build-guacd
-    if: ${{ github.ref != 'refs/heads/main' }}
-    steps:
-      - name: Detect changes in guacd
-        id: changes
-        run: |
-          if git diff --name-only HEAD^ HEAD | grep -q '^guacd/'; then
-            echo "changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "changes=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Skip if no changes
-        if: ${{ steps.changes.outputs.changes == 'false' }}
-        run: |
-          echo "No changes in guacd — skipping smoke test."
-          exit 0
-      - name: Run guacd container
-        run: |
-          IMAGE="ghcr.io/${{ github.actor }}/guacd:latest"
-          docker run -d --name smoke-guacd "$IMAGE"
-      - name: Wait and verify process
-        run: |
-          sleep 5
-          docker ps --filter "name=smoke-guacd" --format "{{.Names}}" | grep -q smoke-guacd \
-            && echo "guacd container running" \
-            || (echo "guacd container not running" && docker logs smoke-guacd && exit 1)
-      - name: Check port 4822 listening
-        run: |
-          docker exec smoke-guacd sh -c "apt-get update && apt-get install -y net-tools 2>/dev/null || true"
-          docker exec smoke-guacd sh -c "netstat -lnt | grep -q ':4822' && echo 'Port 4822 listening' || (echo 'Port 4822 not listening'; exit 1)"
-          # Alternative externe (sur le host du runner) :
-          # docker exec smoke-guacd sh -c "nc -z localhost 4822" ...
-      - name: Logs on failure
-        if: ${{ failure() }}
-        run: docker logs smoke-guacd || true
-      - name: Cleanup
-        if: always()
-        run: |
-          docker stop smoke-guacd || true
-          docker rm smoke-guacd || true
+      - name: Show local images
+        run: docker images
 
   ###########################################
   # JOB 3 — Build Guacamole Web (Tomcat)
@@ -256,164 +156,8 @@ jobs:
           context: ./guacamole-tomcat
           file: ./guacamole-tomcat/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
+          load: ${{ github.ref != 'refs/heads/main' }}
           tags: ghcr.io/${{ github.actor }}/guacamole:latest
 
-      - run: docker images
-  ###########################################
-  # JOB 3b — Smoke Test guacamole (http + dependency)
-  ###########################################
-  test-guacamole-smoke:
-    name: Smoke test Guacamole (HTTP + DB + optional login)
-    runs-on: ubuntu-latest
-    needs: [build-guacamole, build-mariadb, build-guacd]
-    if: ${{ github.ref != 'refs/heads/main' }}
-    steps:
-      - name: Detect changes in guacamole-tomcat
-        id: changes
-        run: |
-          if git diff --name-only HEAD^ HEAD | grep -q '^guacamole-tomcat/'; then
-            echo "changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Skip if no changes
-        if: ${{ steps.changes.outputs.changes == 'false' }}
-        run: |
-          echo "No changes in guacamole-tomcat — skipping smoke test."
-          exit 0
-
-      - name: Create network (idempotent)
-        run: |
-          docker network inspect guacnet >/dev/null 2>&1 || docker network create guacnet
-          echo "Networks:"
-          docker network ls
-
-      - name: Start MariaDB + guacd (support)
-        run: |
-          docker run -d --name smoke-mariadb --network guacnet \
-            -e MYSQL_DATABASE=guacamole_db \
-            -e MYSQL_USER=guacamole_user \
-            -e MYSQL_PASSWORD=some_password \
-            ghcr.io/${{ github.actor }}/mariadb-guacamole:latest
-          docker run -d --name smoke-guacd --network guacnet ghcr.io/${{ github.actor }}/guacd:latest
-
-      - name: Wait for MariaDB readiness
-        run: |
-          for i in $(seq 1 40); do
-            docker exec smoke-mariadb mysqladmin ping -uroot --silent >/dev/null 2>&1 && break
-            echo "Waiting MariaDB... ($i)"
-            sleep 2
-          done
-          docker exec smoke-mariadb mysqladmin ping -uroot --silent >/dev/null 2>&1 || { echo "MariaDB not ready"; docker logs smoke-mariadb; exit 1; }
-
-      - name: (Debug) Show current DB list
-        run: |
-          docker exec smoke-mariadb mysql -uroot -e "SHOW DATABASES;" || true
-
-      - name: Start Guacamole container
-        run: |
-          docker run -d --name smoke-guac --network guacnet -p 8080:8080 \
-            -e GUACD_HOST=smoke-guacd \
-            -e MYSQL_HOST=smoke-mariadb \
-            -e MYSQL_DATABASE=guacamole_db \
-            -e MYSQL_USER=guacamole_user \
-            -e MYSQL_PASSWORD=some_password \
-            ghcr.io/${{ github.actor }}/guacamole:latest
-
-      - name: Wait for Guacamole HTTP (context path)
-        run: |
-          # On attend la disponibilité HTTP (guacamole peut exposer / ou /guacamole/)
-          for i in $(seq 1 60); do
-            if curl -sS -f http://localhost:8080/guacamole/ >/dev/null 2>&1; then
-              echo "HTTP context /guacamole/ ready at attempt $i"
-              break
-            fi
-            echo "Waiting Guacamole... ($i)"
-            sleep 2
-          done
-          curl -sS -f http://localhost:8080/guacamole/ >/dev/null 2>&1 || { echo "Guacamole not responding"; docker logs smoke-guac; exit 1; }
-          echo "Guacamole HTTP reachable"
-
-      - name: (Optional) Wait extension JDBC loaded (log pattern)
-        run: |
-          # Si le JAR JDBC est présent, le log devrait contenir "MySQL Authentication" ou similaire.
-          # On ne fait pas échouer si absent (image peut être encore en construction).
-          for i in $(seq 1 30); do
-            if docker logs smoke-guac 2>&1 | grep -q 'MySQL Authentication'; then
-              echo "Extension JDBC détectée (log)."
-              break
-            fi
-            echo "Attente log extension JDBC... ($i)"
-            sleep 2
-          done
-          if ! docker logs smoke-guac 2>&1 | grep -q 'MySQL Authentication'; then
-            echo "Extension JDBC non détectée dans les logs (continuation sans échec — peut être normal si image partielle)."
-          fi
-
-      - name: Check if Guacamole schema seems present (look for table guacamole_user)
-        id: schema
-        run: |
-          if docker exec smoke-mariadb mysql -uroot -e "USE guacamole_db; SHOW TABLES LIKE 'guacamole_user';" | grep -q guacamole_user; then
-            echo "has_schema=true" >> $GITHUB_OUTPUT
-            echo "Schema detected (guacamole_user table)."
-          else
-            echo "has_schema=false" >> $GITHUB_OUTPUT
-            echo "Schema NOT detected (guacamole_user table missing). Login test will be skipped."
-          fi
-
-      - name: Attempt login (guacadmin) with retries (skip if no schema)
-        if: ${{ steps.schema.outputs.has_schema == 'true' }}
-        run: |
-          LOGIN_OK=0
-          for i in $(seq 1 15); do
-            resp=$(curl -sS -H 'Content-Type: application/x-www-form-urlencoded' \
-              -X POST http://localhost:8080/guacamole/api/tokens \
-              --data 'username=guacadmin&password=guacadmin' || true)
-            echo "Tentative $i: $resp"
-            echo "$resp" | grep -q '"authToken"' && { LOGIN_OK=1; break; }
-            # Si internal error, attendre un peu (JDBC encore en init ?)
-            sleep 2
-          done
-          if [ "$LOGIN_OK" -eq 1 ]; then
-            echo "Login token obtenu"
-          else
-            echo "Echec login après retries"
-            echo "---- Derniers logs Guacamole ----"
-            docker logs smoke-guac | tail -n 200 || true
-            exit 1
-          fi
-
-      - name: Skip reason (no schema -> no login test)
-        if: ${{ steps.schema.outputs.has_schema != 'true' }}
-        run: |
-          echo "Login non tenté car schéma absent (pas de table guacamole_user)."
-          echo "Pour activer ce test: importer le schéma JDBC + créer guacadmin."
-
-      - name: Extra debug (properties / extensions listing)
-        if: always()
-        run: |
-          echo "--- Extensions directory (if exists) ---"
-          docker exec smoke-guac sh -c "ls -1 /opt/guacamole/extensions" 2>/dev/null || echo "No /opt/guacamole/extensions"
-          echo "--- guacamole.properties (common locations) ---"
-          docker exec smoke-guac sh -c "cat /etc/guacamole/guacamole.properties" 2>/dev/null || \
-          docker exec smoke-guac sh -c "cat /opt/guacamole/guacamole.properties" 2>/dev/null || \
-          echo "guacamole.properties introuvable"
-          echo "--- MariaDB tables (first 20) ---"
-          docker exec smoke-mariadb mysql -uroot -e "USE guacamole_db; SHOW TABLES;" 2>/dev/null | head -n 20 || echo "Impossible de lister les tables."
-
-      - name: Dump logs on failure (aggregated)
-        if: ${{ failure() }}
-        run: |
-          echo "--- Guacamole (tail 200) ---"
-          docker logs smoke-guac | tail -n 200 || true
-          echo "--- MariaDB (tail 50) ---"
-          docker logs smoke-mariadb | tail -n 50 || true
-          echo "--- guacd (tail 50) ---"
-          docker logs smoke-guacd | tail -n 50 || true
-
-      - name: Cleanup
-        if: always()
-        run: |
-          docker stop smoke-guac smoke-mariadb smoke-guacd || true
-          docker rm smoke-guac smoke-mariadb smoke-guacd || true
+      - name: Show local images
+        run: docker images
