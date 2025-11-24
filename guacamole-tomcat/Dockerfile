@@ -53,6 +53,8 @@ ENV GUACAMOLE_HOME=/etc/guacamole
 #Expose port
 EXPOSE 8080
 
+#test
+
 #Entry point
 ENTRYPOINT ["/opt/tomcat9/docker-entrypoint.sh"]
 
