@@ -38,7 +38,8 @@ jobs:
           exit 0
 
       - name: Show result
-        run: echo "Changes detected: ${{ steps.changes.outputs.mariadb }}"
+        run: |
+          echo "Changes detected: ${{ steps.changes.outputs.mariadb }}"
 
       - name: Setup Docker Buildx
         if: ${{ steps.changes.outputs.mariadb == 'true' }}
@@ -95,7 +96,8 @@ jobs:
           exit 0
 
       - name: Show result
-        run: echo "Changes detected: ${{ steps.changes-guacd.outputs.guacd }}"
+        run: |
+          echo "Changes detected: ${{ steps.changes-guacd.outputs.guacd }}"
 
       - name: Setup Docker Buildx
         if: ${{ steps.changes-guacd.outputs.guacd == 'true' }}
@@ -153,7 +155,8 @@ jobs:
           exit 0
 
       - name: Show result
-        run: echo "Changes detected: ${{ steps.changes-guac.outputs.guacamole }}"
+        run: |
+          echo "Changes detected: ${{ steps.changes-guac.outputs.guacamole }}"
 
       - name: Setup Docker Buildx
         if: ${{ steps.changes-guac.outputs.guacamole == 'true' }}
