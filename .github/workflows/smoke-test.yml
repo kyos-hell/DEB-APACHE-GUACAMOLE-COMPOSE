@@ -1,8 +1,6 @@
 name: Smoke tests — full stack (guacd + mariadb + guacamole)
 
 on:
-  push:
-    branches: ["dev"]
   workflow_dispatch:
     inputs:
       tag:
@@ -11,6 +9,7 @@ on:
         default: ''
   workflow_run:
     workflows: ["Build Guacamole Stack images (CI tag)"]
+    branches: ["dev"]
     types: [completed]
 
 permissions:
@@ -21,8 +20,8 @@ jobs:
   smoke-guacd:
     name: Smoke guacd (pull ci tag — fail if missing)
     runs-on: ubuntu-latest
-    # Run on manual, on push dev, or after a successful upstream workflow_run
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    # Run on manual, or after a successful upstream workflow_run
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     env:
       # Prefer manual input; else head_sha when workflow_run; else fallback to github.sha
       TAG: ${{ github.event.inputs.tag != '' && github.event.inputs.tag || (github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha) }}
@@ -79,7 +78,7 @@ jobs:
   smoke-mariadb:
     name: Smoke mariadb (pull ci tag — fail if missing)
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     env:
       TAG: ${{ github.event.inputs.tag != '' && github.event.inputs.tag || (github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha) }}
     steps:
