@@ -16,9 +16,18 @@ permissions:
   packages: read
 
 jobs:
+  debug-event:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show event info
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "workflow_run.conclusion=${{ github.event.workflow_run.conclusion || 'n/a' }}"
+
   smoke-guacd:
     name: Smoke guacd (pull ci tag — fail if missing)
     runs-on: ubuntu-latest
+    needs: debug-event
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Login to GHCR
@@ -69,6 +78,7 @@ jobs:
   smoke-mariadb:
     name: Smoke mariadb (pull ci tag — fail if missing)
     runs-on: ubuntu-latest
+    needs: debug-event
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Login to GHCR
