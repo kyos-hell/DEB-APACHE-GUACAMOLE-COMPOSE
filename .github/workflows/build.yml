@@ -211,3 +211,15 @@ jobs:
 
       - name: Show local images
         run: docker images
+  ###########################################
+  # JOB 4 — Run smoke tests after images are built and pushed
+  ###########################################
+  smoke-tests:
+    name: Run smoke tests (reusable workflow)
+    needs: [build-mariadb, build-guacd, build-guacamole]
+    # Ne lance les tests que sur la branche dev, et évite les PRs venant de forks (pas de push d’images)
+    if: github.ref == 'refs/heads/dev' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    uses: kyos-hell/DEB-APACHE-GUACAMOLE-COMPOSE/.github/workflows/smoke-tests-full-stack.yml@dev
+    with:
+      tag: ${{ github.sha }}
+    secrets: inherit
