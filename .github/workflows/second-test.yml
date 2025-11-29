@@ -1,0 +1,16 @@
+name: Second workflow test
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print info
+        run: |
+          echo "Second workflow running"
+          echo "Ref: $GITHUB_REF"
+          echo "SHA: $GITHUB_SHA"
