@@ -25,3 +25,5 @@ EXPOSE 3306
 
 #Entry point
 ENTRYPOINT ["docker-entrypoint.sh"]
+
+#test
