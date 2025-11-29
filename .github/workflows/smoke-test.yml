@@ -69,7 +69,7 @@ jobs:
   smoke-mariadb:
     name: Smoke mariadb (pull ci tag — fail if missing)
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event. workflow_run.conclusion == 'success' }}
+    if: ${{ github. event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -81,17 +81,17 @@ jobs:
       - name: Determine TAG to use
         id: tag2
         run: |
-          if [ -n "${{ github.event.inputs.tag || '' }}" ]; then
+          if [ -n "${{ github. event.inputs.tag || '' }}" ]; then
             echo "TAG=${{ github.event.inputs.tag }}" >> $GITHUB_ENV
           else
-            echo "TAG=${{ github. event.workflow_run.head_sha }}" >> $GITHUB_ENV
+            echo "TAG=${{ github.event. workflow_run.head_sha }}" >> $GITHUB_ENV
           fi
           echo "Using TAG=${TAG}"
 
       - name: Pull mariadb CI image (must exist)
         run: |
           set -euo pipefail
-          IMG="ghcr.io/${{ github.repository_owner }}/mariadb-guacamole:ci-${TAG}"
+          IMG="ghcr. io/${{ github.repository_owner }}/mariadb-guacamole:ci-${TAG}"
           echo "Attempting docker pull $IMG"
           if ! docker pull "$IMG"; then
             echo "ERROR: CI image not found: $IMG"
