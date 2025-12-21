@@ -41,11 +41,17 @@ jobs:
       - name: Decide build or skip
         id: set_built
         run: |
-          if [ "${{ steps.pf.outputs.mariadb }}" = "false" ]; then
-            echo "built=false" >> $GITHUB_OUTPUT
-            echo "No changes in mariadb-guacamole — skipping build."
-          else
+          # Always build on pushes to main so we can update :latest on main merges
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
             echo "built=true" >> $GITHUB_OUTPUT
+            echo "On main branch — forcing build."
+          else
+            if [ "${{ steps.pf.outputs.mariadb }}" = "false" ]; then
+              echo "built=false" >> $GITHUB_OUTPUT
+              echo "No changes in mariadb-guacamole — skipping build."
+            else
+              echo "built=true" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Set tag output
@@ -129,11 +135,17 @@ jobs:
       - name: Decide build or skip
         id: set_built
         run: |
-          if [ "${{ steps.pf2.outputs.guacd }}" = "false" ]; then
-            echo "built=false" >> $GITHUB_OUTPUT
-            echo "No changes in guacd — skipping build."
-          else
+          # Always build on pushes to main so we can update :latest on main merges
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
             echo "built=true" >> $GITHUB_OUTPUT
+            echo "On main branch — forcing build."
+          else
+            if [ "${{ steps.pf2.outputs.guacd }}" = "false" ]; then
+              echo "built=false" >> $GITHUB_OUTPUT
+              echo "No changes in guacd — skipping build."
+            else
+              echo "built=true" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Set tag output
@@ -218,11 +230,17 @@ jobs:
       - name: Decide build or skip
         id: set_built
         run: |
-          if [ "${{ steps.pf3.outputs.guacamole }}" = "false" ]; then
-            echo "built=false" >> $GITHUB_OUTPUT
-            echo "No changes in guacamole-tomcat — skipping build."
-          else
+          # Always build on pushes to main so we can update :latest on main merges
+          if [ "$GITHUB_REF" = "refs/heads/main" ]; then
             echo "built=true" >> $GITHUB_OUTPUT
+            echo "On main branch — forcing build."
+          else
+            if [ "${{ steps.pf3.outputs.guacamole }}" = "false" ]; then
+              echo "built=false" >> $GITHUB_OUTPUT
+              echo "No changes in guacamole-tomcat — skipping build."
+            else
+              echo "built=true" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Set tag output
