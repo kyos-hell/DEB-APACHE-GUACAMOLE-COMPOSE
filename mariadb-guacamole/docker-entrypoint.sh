@@ -1,39 +1,59 @@
 #!/bin/bash
 set -e
 
+# Ensure data directory exists and is owned by mysql (runtime chown for PVC mounts)
+mkdir -p /var/lib/mysql
+chown -R mysql:mysql /var/lib/mysql
+
+# Initialize database files if needed
+if [ ! -d "/var/lib/mysql/mysql" ]; then
+    echo "Initializing MariaDB data directory..."
+    if command -v mariadb-install-db >/dev/null 2>&1; then
+        mariadb-install-db --user=mysql --datadir=/var/lib/mysql
+    elif command -v mysql_install_db >/dev/null 2>&1; then
+        mysql_install_db --user=mysql --datadir=/var/lib/mysql
+    else
+        echo "No mariadb-install-db or mysql_install_db found; skipping automatic initialization"
+    fi
+fi
+
 # --- Start MariaDB in the background for initialization --- 
 echo "Starting temporary MariaDB server..."
-mysqld_safe --user=mysql --skip-networking=0 & 
+mysqld --user=mysql --skip-networking &
 pid="$!"
 
 # --- Waiting for MariaDB to be ready --- 
 echo "Waiting for MariaDB to be ready..."
-until mysqladmin ping -uroot --silent; do
-    sleep 1
-done
+if [ -n "$MYSQL_ROOT_PASSWORD" ]; then
+    until mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD" --silent; do
+        sleep 1
+    done
+else
+    until mysqladmin ping -uroot --silent; do
+        sleep 1
+    done
+fi
 echo "MariaDB is ready."
 
 # --- Check and create database if needed --- 
 if [ -n "$MYSQL_DATABASE" ]; then
-    DB_EXISTS=$(mysql -uroot -e "SHOW DATABASES LIKE '$MYSQL_DATABASE';" 2>/dev/null | grep "$MYSQL_DATABASE" || true)
+    DB_EXISTS=$(mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} -e "SHOW DATABASES LIKE '$MYSQL_DATABASE';" 2>/dev/null | grep "$MYSQL_DATABASE" || true)
     if [ -z "$DB_EXISTS" ]; then
         echo "Database $MYSQL_DATABASE not found. Creating..."
-        mysql -uroot <<EOF
-CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\`;
-EOF
+        mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} -e "CREATE DATABASE IF NOT EXISTS \`$MYSQL_DATABASE\`;"
     fi
 fi
 
 # --- Check and create user if needed --- 
 if [ -n "$MYSQL_USER" ] && [ -n "$MYSQL_PASSWORD" ]; then
-    USER_EXISTS=$(mysql -uroot -e "SELECT User, Host FROM mysql.user WHERE User='$MYSQL_USER';" 2>/dev/null | grep "$MYSQL_USER" || true)
+    USER_EXISTS=$(mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} -e "SELECT User, Host FROM mysql.user WHERE User='$MYSQL_USER';" 2>/dev/null | grep "$MYSQL_USER" || true)
     if [ -z "$USER_EXISTS" ]; then
         echo "User $MYSQL_USER not found. Creating..."
-        mysql -uroot <<EOF
+        mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} <<EOF
 CREATE USER IF NOT EXISTS '$MYSQL_USER'@'%' IDENTIFIED BY '$MYSQL_PASSWORD';
 CREATE USER IF NOT EXISTS '$MYSQL_USER'@'localhost' IDENTIFIED BY '$MYSQL_PASSWORD';
-GRANT ALL PRIVILEGES ON \`$MYSQL_DATABASE\`.* TO '$MYSQL_USER'@'%';
-GRANT ALL PRIVILEGES ON \`$MYSQL_DATABASE\`.* TO '$MYSQL_USER'@'localhost';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE:-*}\`.* TO '$MYSQL_USER'@'%';
+GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE:-*}\`.* TO '$MYSQL_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
     fi
@@ -51,11 +71,19 @@ if [ -d "/docker-entrypoint-initdb.d" ]; then
                 ;;
             *.sql)
                 echo "Executing SQL script: $f"
-                mysql -uroot "$MYSQL_DATABASE" < "$full"
+                if [ -n "$MYSQL_DATABASE" ]; then
+                    mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE" < "$full"
+                else
+                    mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} < "$full"
+                fi
                 ;;
             *.sql.gz)
                 echo "Executing compressed SQL script: $f"
-                gunzip -c "$full" | mysql -uroot "$MYSQL_DATABASE"
+                if [ -n "$MYSQL_DATABASE" ]; then
+                    gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE"
+                else
+                    gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"}
+                fi
                 ;;
             *)
                 echo "Ignoring file: $f"
@@ -64,9 +92,9 @@ if [ -d "/docker-entrypoint-initdb.d" ]; then
     done
 fi
 
-# Shutdown temporary server before start in forground --- 
+# Shutdown temporary server before start in foreground --- 
 echo "Stopping temporary MariaDB server..."
-mysqladmin -uroot shutdown
+mysqladmin -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} shutdown
 
 # --- define the bind-address via an environment variable (fallback à 0.0.0.0) --- 
 BIND_ADDR="${MYSQL_BIND_ADDRESS:-0.0.0.0}"
