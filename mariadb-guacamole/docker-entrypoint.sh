@@ -187,3 +187,4 @@ if [ "$1" = "bash" ]; then
 else
     exec mysqld --user=mysql
 fi
+#testy
