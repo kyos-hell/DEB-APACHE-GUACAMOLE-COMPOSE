@@ -76,37 +76,99 @@ EOF
     fi
 fi
 
-# --- Executing initialization scripts --- 
+# --- Executing initialization scripts (run once unless forced) --- 
+# Set MYSQL_FORCE_REINIT=1 to force re-running init scripts on every start
 if [ -d "/docker-entrypoint-initdb.d" ]; then
-    echo "Running initialization scripts from /docker-entrypoint-initdb.d..."
-    for f in $(ls -1 /docker-entrypoint-initdb.d/ | sort); do
-        full="/docker-entrypoint-initdb.d/$f"
-        case "$f" in
-            *.sh)
-                echo "Executing shell script: $f"
-                bash "$full"
-                ;;
-            *.sql)
-                echo "Executing SQL script: $f"
-                if [ -n "$MYSQL_DATABASE" ]; then
-                    mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE" < "$full"
+    if [ -z "$MYSQL_FORCE_REINIT" ] && [ -f "/var/lib/mysql/.initialized" ]; then
+        echo "Initialization scripts already run; skipping (set MYSQL_FORCE_REINIT=1 to force)"
+    else
+        # If a target database is set and already has tables, skip init unless forced
+        if [ -n "$MYSQL_DATABASE" ] && [ -z "$MYSQL_FORCE_REINIT" ]; then
+            echo "Checking if database '$MYSQL_DATABASE' already contains tables..."
+            TABLES_COUNT=$(mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} -N -B -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$MYSQL_DATABASE';" 2>/dev/null || echo "0")
+            if [ "$TABLES_COUNT" -gt 0 ]; then
+                echo "Database '$MYSQL_DATABASE' already contains $TABLES_COUNT tables; skipping init scripts (set MYSQL_FORCE_REINIT=1 to force)"
+                # create marker to avoid future checks
+                if touch /var/lib/mysql/.initialized 2>/dev/null; then
+                    echo "Initialization marker created: /var/lib/mysql/.initialized"
                 else
-                    mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} < "$full"
+                    echo "Warning: could not create initialization marker /var/lib/mysql/.initialized (permissions?)"
                 fi
-                ;;
-            *.sql.gz)
-                echo "Executing compressed SQL script: $f"
-                if [ -n "$MYSQL_DATABASE" ]; then
-                    gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE"
+            else
+                echo "Running initialization scripts from /docker-entrypoint-initdb.d..."
+                for f in $(ls -1 /docker-entrypoint-initdb.d/ | sort); do
+                    full="/docker-entrypoint-initdb.d/$f"
+                    case "$f" in
+                        *.sh)
+                            echo "Executing shell script: $f"
+                            bash "$full"
+                            ;;
+                        *.sql)
+                            echo "Executing SQL script: $f"
+                            if [ -n "$MYSQL_DATABASE" ]; then
+                                mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE" < "$full"
+                            else
+                                mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} < "$full"
+                            fi
+                            ;;
+                        *.sql.gz)
+                            echo "Executing compressed SQL script: $f"
+                            if [ -n "$MYSQL_DATABASE" ]; then
+                                gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE"
+                            else
+                                gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"}
+                            fi
+                            ;;
+                        *)
+                            echo "Ignoring file: $f"
+                            ;;
+                    esac
+                done
+                # mark initialization as completed so scripts are not re-run
+                if touch /var/lib/mysql/.initialized 2>/dev/null; then
+                    echo "Initialization marker created: /var/lib/mysql/.initialized"
                 else
-                    gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"}
+                    echo "Warning: could not create initialization marker /var/lib/mysql/.initialized (permissions?)"
                 fi
-                ;;
-            *)
-                echo "Ignoring file: $f"
-                ;;
-        esac
-    done
+            fi
+        else
+            echo "Running initialization scripts from /docker-entrypoint-initdb.d..."
+            for f in $(ls -1 /docker-entrypoint-initdb.d/ | sort); do
+                full="/docker-entrypoint-initdb.d/$f"
+                case "$f" in
+                    *.sh)
+                        echo "Executing shell script: $f"
+                        bash "$full"
+                        ;;
+                    *.sql)
+                        echo "Executing SQL script: $f"
+                        if [ -n "$MYSQL_DATABASE" ]; then
+                            mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE" < "$full"
+                        else
+                            mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} < "$full"
+                        fi
+                        ;;
+                    *.sql.gz)
+                        echo "Executing compressed SQL script: $f"
+                        if [ -n "$MYSQL_DATABASE" ]; then
+                            gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} "$MYSQL_DATABASE"
+                        else
+                            gunzip -c "$full" | mysql -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"}
+                        fi
+                        ;;
+                    *)
+                        echo "Ignoring file: $f"
+                        ;;
+                esac
+            done
+            # mark initialization as completed so scripts are not re-run
+            if touch /var/lib/mysql/.initialized 2>/dev/null; then
+                echo "Initialization marker created: /var/lib/mysql/.initialized"
+            else
+                echo "Warning: could not create initialization marker /var/lib/mysql/.initialized (permissions?)"
+            fi
+        fi
+    fi
 fi
 
 # Shutdown temporary server before start in foreground --- 
