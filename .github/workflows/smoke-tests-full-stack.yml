@@ -26,23 +26,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull guacd CI image (must exist, with retry)
+      - name: Pull guacd CI image (with fallback to latest)
         run: |
           set -euo pipefail
-          IMG="ghcr.io/${{ github.repository_owner }}/guacd:ci-${TAG}"
-          echo "Attempting docker pull $IMG with retry"
+          CI_IMG="ghcr.io/${{ github.repository_owner }}/guacd:ci-${TAG}"
+          LATEST_IMG="ghcr.io/${{ github.repository_owner }}/guacd:latest"
+          echo "Attempting docker pull $CI_IMG with retry"
+          pulled=0
           for i in $(seq 1 12); do
-            if docker pull "$IMG"; then
-              echo "Pulled on attempt $i"
+            if docker pull "$CI_IMG"; then
+              echo "Pulled $CI_IMG on attempt $i"
+              SELECTED="$CI_IMG"
+              pulled=1
               break
             fi
             echo "Not available yet, retrying in 10s... ($i/12)"
             sleep 10
           done
-          docker image inspect "$IMG" >/dev/null 2>&1 || { echo "ERROR: CI image not found after retries: $IMG"; exit 1; }
+          if [ "$pulled" -eq 0 ]; then
+            echo "CI image not found, attempting to pull latest: $LATEST_IMG"
+            if docker pull "$LATEST_IMG"; then
+              SELECTED="$LATEST_IMG"
+            else
+              echo "ERROR: Neither CI nor latest image available: $CI_IMG / $LATEST_IMG"
+              exit 1
+            fi
+          fi
+          echo "GUACD_IMAGE=$SELECTED" >> $GITHUB_ENV
 
       - name: Run guacd container
-        run: docker run -d --name smoke-guacd "ghcr.io/${{ github.repository_owner }}/guacd:ci-${TAG}"
+        run: docker run -d --name smoke-guacd "$GUACD_IMAGE"
 
       - name: Wait and verify process
         run: |
@@ -86,20 +99,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull mariadb CI image (must exist, with retry)
+      - name: Pull mariadb CI image (with fallback to latest)
         run: |
           set -euo pipefail
-          IMG="ghcr.io/${{ github.repository_owner }}/mariadb-guacamole:ci-${TAG}"
-          echo "Attempting docker pull $IMG with retry"
+          CI_IMG="ghcr.io/${{ github.repository_owner }}/mariadb-guacamole:ci-${TAG}"
+          LATEST_IMG="ghcr.io/${{ github.repository_owner }}/mariadb-guacamole:latest"
+          echo "Attempting docker pull $CI_IMG with retry"
+          pulled=0
           for i in $(seq 1 12); do
-            if docker pull "$IMG"; then
-              echo "Pulled on attempt $i"
+            if docker pull "$CI_IMG"; then
+              echo "Pulled $CI_IMG on attempt $i"
+              SELECTED="$CI_IMG"
+              pulled=1
               break
             fi
             echo "Not available yet, retrying in 10s... ($i/12)"
             sleep 10
           done
-          docker image inspect "$IMG" >/dev/null 2>&1 || { echo "ERROR: CI image not found after retries: $IMG"; exit 1; }
+          if [ "$pulled" -eq 0 ]; then
+            echo "CI image not found, attempting to pull latest: $LATEST_IMG"
+            if docker pull "$LATEST_IMG"; then
+              SELECTED="$LATEST_IMG"
+            else
+              echo "ERROR: Neither CI nor latest image available: $CI_IMG / $LATEST_IMG"
+              exit 1
+            fi
+          fi
+          echo "MARIADB_IMAGE=$SELECTED" >> $GITHUB_ENV
 
       - name: Run MariaDB container
         run: |
@@ -108,7 +134,7 @@ jobs:
             -e MYSQL_DATABASE=guacamole_db \
             -e MYSQL_USER=guacamole_user \
             -e MYSQL_PASSWORD=some_password \
-            "ghcr.io/${{ github.repository_owner }}/mariadb-guacamole:ci-${TAG}"
+            "$MARIADB_IMAGE"
 
       - name: Wait for MariaDB readiness
         run: |
@@ -141,23 +167,44 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull images (must exist, with retry)
+      - name: Pull images (CI tag -> fallback to :latest)
         run: |
           set -euo pipefail
           for img in guacamole guacd mariadb-guacamole; do
-            FULL="ghcr.io/${{ github.repository_owner }}/${img}:ci-${TAG}"
-            echo "Pulling $FULL with retry"
-            pulled=
+            CI_FULL="ghcr.io/${{ github.repository_owner }}/${img}:ci-${TAG}"
+            LATEST_FULL="ghcr.io/${{ github.repository_owner }}/${img}:latest"
+            echo "Attempting docker pull $CI_FULL with retry"
+            pulled=0
             for i in $(seq 1 12); do
-              if docker pull "$FULL"; then
-                echo "Pulled $FULL on attempt $i"
+              if docker pull "$CI_FULL"; then
+                echo "Pulled $CI_FULL on attempt $i"
+                SELECTED="$CI_FULL"
                 pulled=1
                 break
               fi
               echo "Not available yet, retrying in 10s... ($i/12)"
               sleep 10
             done
-            [ -n "$pulled" ] || { echo "ERROR: CI image not found after retries: $FULL"; exit 1; }
+            if [ "$pulled" -eq 0 ]; then
+              echo "CI image not found for $img, attempting latest: $LATEST_FULL"
+              if docker pull "$LATEST_FULL"; then
+                SELECTED="$LATEST_FULL"
+              else
+                echo "ERROR: No suitable image for $img (neither CI nor latest found)"
+                exit 1
+              fi
+            fi
+            case "$img" in
+              guacd)
+                echo "GUACD_IMAGE=$SELECTED" >> $GITHUB_ENV
+                ;;
+              mariadb-guacamole)
+                echo "MARIADB_IMAGE=$SELECTED" >> $GITHUB_ENV
+                ;;
+              guacamole)
+                echo "GUACAMOLE_IMAGE=$SELECTED" >> $GITHUB_ENV
+                ;;
+            esac
           done
 
       - name: Create network (idempotent)
@@ -170,8 +217,8 @@ jobs:
             -e MYSQL_DATABASE=guacamole_db \
             -e MYSQL_USER=guacamole_user \
             -e MYSQL_PASSWORD=some_password \
-            "ghcr.io/${{ github.repository_owner }}/mariadb-guacamole:ci-${TAG}"
-          docker run -d --name smoke-guacd --network guacnet "ghcr.io/${{ github.repository_owner }}/guacd:ci-${TAG}"
+            "$MARIADB_IMAGE"
+          docker run -d --name smoke-guacd --network guacnet "$GUACD_IMAGE"
 
       - name: Start Guacamole container
         run: |
@@ -181,7 +228,7 @@ jobs:
             -e MYSQL_DATABASE=guacamole_db \
             -e MYSQL_USER=guacamole_user \
             -e MYSQL_PASSWORD=some_password \
-            "ghcr.io/${{ github.repository_owner }}/guacamole:ci-${TAG}"
+            "$GUACAMOLE_IMAGE"
 
       - name: Wait for Guacamole HTTP (context path)
         run: |

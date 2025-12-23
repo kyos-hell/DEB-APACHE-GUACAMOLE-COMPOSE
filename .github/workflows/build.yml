@@ -37,6 +37,10 @@ jobs:
           filters: |
             mariadb:
               - 'mariadb-guacamole/**'
+            runtime:
+              - 'mariadb-guacamole/docker-entrypoint.sh'
+              - 'mariadb-guacamole/**/*.sh'
+              - 'mariadb-guacamole/init/**'
 
       - name: Decide build or skip
         id: set_built
@@ -46,9 +50,10 @@ jobs:
             echo "built=true" >> $GITHUB_OUTPUT
             echo "On main branch — forcing build."
           else
-            if [ "${{ steps.pf.outputs.mariadb }}" = "false" ]; then
+            # Build if there are changes in the context or runtime scripts
+            if [ "${{ steps.pf.outputs.mariadb }}" = "false" ] && [ "${{ steps.pf.outputs.runtime }}" = "false" ]; then
               echo "built=false" >> $GITHUB_OUTPUT
-              echo "No changes in mariadb-guacamole — skipping build."
+              echo "No changes in mariadb-guacamole or runtime scripts — skipping build."
             else
               echo "built=true" >> $GITHUB_OUTPUT
             fi
@@ -139,6 +144,9 @@ jobs:
           filters: |
             guacd:
               - 'guacd/**'
+            runtime:
+              - 'guacd/docker-entrypoint.sh'
+              - 'guacd/**/*.sh'
 
       - name: Decide build or skip
         id: set_built
@@ -148,9 +156,10 @@ jobs:
             echo "built=true" >> $GITHUB_OUTPUT
             echo "On main branch — forcing build."
           else
-            if [ "${{ steps.pf2.outputs.guacd }}" = "false" ]; then
+            # Build if there are changes in the context or runtime scripts
+            if [ "${{ steps.pf2.outputs.guacd }}" = "false" ] && [ "${{ steps.pf2.outputs.runtime }}" = "false" ]; then
               echo "built=false" >> $GITHUB_OUTPUT
-              echo "No changes in guacd — skipping build."
+              echo "No changes in guacd or runtime scripts — skipping build."
             else
               echo "built=true" >> $GITHUB_OUTPUT
             fi
@@ -242,6 +251,10 @@ jobs:
           filters: |
             guacamole:
               - 'guacamole-tomcat/**'
+            runtime:
+              - 'guacamole-tomcat/docker-entrypoint.sh'
+              - 'guacamole-tomcat/**/*.sh'
+              - 'guacamole-tomcat/**/*.sql'
 
       - name: Decide build or skip
         id: set_built
@@ -251,9 +264,10 @@ jobs:
             echo "built=true" >> $GITHUB_OUTPUT
             echo "On main branch — forcing build."
           else
-            if [ "${{ steps.pf3.outputs.guacamole }}" = "false" ]; then
+            # Build if there are changes in the context or runtime scripts
+            if [ "${{ steps.pf3.outputs.guacamole }}" = "false" ] && [ "${{ steps.pf3.outputs.runtime }}" = "false" ]; then
               echo "built=false" >> $GITHUB_OUTPUT
-              echo "No changes in guacamole-tomcat — skipping build."
+              echo "No changes in guacamole-tomcat or runtime scripts — skipping build."
             else
               echo "built=true" >> $GITHUB_OUTPUT
             fi
