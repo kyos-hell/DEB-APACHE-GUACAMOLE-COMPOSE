@@ -53,6 +53,9 @@ RUN chown -R guacd:guacd \
 # Expose guacd port
 EXPOSE 4822
 
+# User
+USER 114
+
 # Entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
 

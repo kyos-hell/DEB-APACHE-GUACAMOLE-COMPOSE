@@ -44,7 +44,7 @@ RUN chmod +x /opt/tomcat9/docker-entrypoint.sh
 RUN chown -R tomcat:tomcat /opt/tomcat9 /etc/guacamole
 
 #Define USER
-USER tomcat
+USER 1000
 
 #Define ENV
 ENV CATALINA_HOME=/opt/tomcat9
