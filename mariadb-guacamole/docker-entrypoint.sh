@@ -1,19 +1,9 @@
 #!/bin/bash
 set -e
 
-# Ensure data directory exists and print diagnostics (helps with bind mounts/PVC debugging)
+# Ensure data directory exists (created in Dockerfile with proper permissions)
 mkdir -p /var/lib/mysql
-echo "Listing /var/lib/mysql (pre-chown):"
-ls -la /var/lib/mysql || true
-echo "Attempting to set ownership to mysql:mysql (may fail on some mounts)..."
-if chown -R mysql:mysql /var/lib/mysql 2>/dev/null; then
-    echo "Ownership set to mysql:mysql"
-else
-    echo "Warning: chown failed — /var/lib/mysql may not be writable or chown unsupported by the filesystem; proceeding anyway"
-fi
-
-echo "Listing /var/lib/mysql (post-chown):"
-ls -la /var/lib/mysql || true
+echo "MariaDB data directory ready at /var/lib/mysql"
 
 
 # Initialize database files if needed
@@ -177,14 +167,17 @@ mysqladmin -uroot ${MYSQL_ROOT_PASSWORD:+-p"$MYSQL_ROOT_PASSWORD"} shutdown
 
 # --- define the bind-address via an environment variable (fallback à 0.0.0.0) --- 
 BIND_ADDR="${MYSQL_BIND_ADDRESS:-0.0.0.0}"
-echo "Setting bind-address = $BIND_ADDR"
-echo "[mysqld]" > /etc/mysql/mariadb.conf.d/99-bind-address.cnf
-echo "bind-address = $BIND_ADDR" >> /etc/mysql/mariadb.conf.d/99-bind-address.cnf
+echo "Setting bind-address = $BIND_ADDR (config will be applied at startup)"
 
 # --- Final start in foreground --- 
 if [ "$1" = "bash" ]; then
     exec /bin/bash
 else
-    exec mysqld --user=mysql
+    # Start with custom bind address if needed
+    if [ -n "$MYSQL_BIND_ADDRESS" ]; then
+        exec mysqld --user=999 --bind-address="$MYSQL_BIND_ADDRESS"
+    else
+        exec mysqld --user=999
+    fi
 fi
 #testy
