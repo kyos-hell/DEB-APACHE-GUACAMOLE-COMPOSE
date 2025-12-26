@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     libavcodec59 libavformat59 libavutil57 libswscale6 \
     libfreerdp2-2 libpango-1.0-0 libssh2-1 libtelnet2 \
     libvncserver1 libpulse0 libssl3 libvorbis0a libwebp7 libcairo2 \
-    libjpeg62-turbo libpng16-16 uuid-runtime \
+    libjpeg62-turbo libpng16-16 uuid-runtime net-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
