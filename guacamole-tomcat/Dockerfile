@@ -40,11 +40,11 @@ RUN touch /etc/guacamole/guacamole.properties
 COPY docker-entrypoint.sh /opt/tomcat9/docker-entrypoint.sh
 RUN chmod +x /opt/tomcat9/docker-entrypoint.sh
 
-#Define permissions
-RUN chown -R tomcat:tomcat /opt/tomcat9 /etc/guacamole
+#Define permissions - ensure UID 1000 can write to guacamole config
+RUN chown -R 1000:1000 /opt/tomcat9 /etc/guacamole && chmod 755 /etc/guacamole && chmod 755 /opt/tomcat9
 
 #Define USER
-USER tomcat
+USER 1000
 
 #Define ENV
 ENV CATALINA_HOME=/opt/tomcat9
